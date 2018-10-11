@@ -174,7 +174,6 @@ class HttpClient
                     CURLOPT_HTTPHEADER => $this->headers
                 ];
         }
-        print_r($opts);
         if (!curl_setopt_array(self::$client, $opts)) {
             throw new \Exception('curl opt params error');
         }
