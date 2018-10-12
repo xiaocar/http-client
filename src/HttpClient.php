@@ -5,7 +5,7 @@ namespace Http;
 class HttpClient
 {
     const HTTP_METHOD = [
-        'GET','POST','PUT','DELETE','PATCH','OPTIONS'
+        'GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'
     ];
 
     /** @var resource $client */
@@ -61,15 +61,25 @@ class HttpClient
     /**
      * @param string $url 请求地址 <required>
      * @param array $request 请求
-     * @param string $request['method'] 请求方法 <not required> 'GET'|'POST'|'PUT'|'DELETE'|'PATCH'|'OPTIONS'
-     * @param array $request['headers'] 请求头 <not required>
-     * @param array $request['data'] 请求body <not required>
+     * @param string $request ['method'] 请求方法 <not required> 'GET'|'POST'|'PUT'|'DELETE'|'PATCH'|'OPTIONS'
+     * @param array $request ['headers'] 请求头 <not required>
+     * @param array $request ['query'] 请求query <not required>
+     * @param array $request ['data'] 请求body <not required>
      */
     public function request(string $url, array $request = [])
     {
-        $this->url = $url;
+        $this->url = trim($url, '? ');
         if (!empty($request['method']) && ($method = strtoupper($request['method'])) && in_array($method, self::HTTP_METHOD)) {
             $this->customrequest = $method;
+        }
+        if (!empty($request['query'])) {
+            $param = "";
+            if ($index = strpos($this->url, '?')) {
+                $url = substr($this->url, 0, $index);
+                $param = trim(substr($this->url, $index + 1), '&');
+                $this->url = $url;
+            }
+            $this->url = $this->url . '?' . (!empty($param) ? $param . '&' : '') . http_build_query($request['query']);
         }
         $data = null;
         if (!empty($request['data']) && is_array($request['data'])) {
@@ -87,30 +97,27 @@ class HttpClient
         return $this->_getResult();
     }
 
-    public function post($url, array $body = [], array $headers = [])
+    public function post(string $url, array $body = [], array $headers = [])
     {
-        $this->url = $url;
-        $this->customrequest = 'POST';
-        $this->extraCurlOpt = $this->extraCurlOpt + [
-                CURLOPT_POST => 1,
-                CURLOPT_POSTFIELDS => $body
-            ];
-        if (!empty($headers)) {
-            $this->headers = array_merge($this->headers, $headers);
-        }
-
-        return $this->_getResult();
+        return $this->request($url, [
+            'method' => 'POST',
+            'headers' => $headers,
+            'data' => $body
+        ]);
     }
 
-    public function get($url, array $headers = [])
+    public function get($url, array $query = [], array $headers = [])
     {
-        $this->url = $url;
-        if (!empty($headers)) {
-            $this->headers = array_merge($this->headers, $headers);
-        }
-        return $this->_getResult();
+        return $this->request($url, [
+            'method' => 'GET',
+            'headers' => $headers,
+            'query' => $query
+        ]);
     }
 
+    /**
+     * @return array|string
+     */
     protected function _getResult()
     {
         try {
@@ -120,7 +127,7 @@ class HttpClient
             }
             curl_close(self::$client);
             $this->extraCurlOpt = []; //每次执行完清空额外参数
-            return json_decode($result,true) ?? $result;
+            return json_decode($result, true) ?? $result;
         } catch (\Exception $e) {
             curl_close(self::$client);
             return [
@@ -159,21 +166,22 @@ class HttpClient
                 $this->headers[] = $k . ': ' . trim($header);
             }
             if (strtolower($k) == 'content-type' && strpos($header, 'application/json') !== false) {
-                if(is_array($opts[CURLOPT_POSTFIELDS] ?? '')){
+                if (is_array($opts[CURLOPT_POSTFIELDS] ?? '')) {
                     $opts[CURLOPT_POSTFIELDS] = json_encode($opts[CURLOPT_POSTFIELDS]);
                 }
                 $this->headers[] = "Content-Length: " . strlen($opts[CURLOPT_POSTFIELDS] ?? '');
             }
         }
-        if(is_array($opts[CURLOPT_POSTFIELDS] ?? '')){
+        if (is_array($opts[CURLOPT_POSTFIELDS] ?? '')) {
             $opts[CURLOPT_POSTFIELDS] = http_build_query($opts[CURLOPT_POSTFIELDS]);
         }
 
-        if(!empty($this->headers)){
+        if (!empty($this->headers)) {
             $opts = $opts + [
                     CURLOPT_HTTPHEADER => $this->headers
                 ];
         }
+        p($opts);
         if (!curl_setopt_array(self::$client, $opts)) {
             throw new \Exception('curl opt params error');
         }
