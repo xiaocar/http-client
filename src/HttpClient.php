@@ -120,7 +120,7 @@ class HttpClient
             }
             curl_close(self::$client);
             $this->extraCurlOpt = []; //每次执行完清空额外参数
-            return json_decode($result,true);
+            return json_decode($result,true) ?? $result;
         } catch (\Exception $e) {
             curl_close(self::$client);
             return [
