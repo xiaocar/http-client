@@ -50,9 +50,8 @@ class HttpClient
 
     /** @return self */
     public static function getInstance()
-    {
-        if (empty(self::$client))
-            self::$client = curl_init();
+    {   
+        self::$client = curl_init();
         if (empty(self::$instance))
             self::$instance = new self();
         return self::$instance;
